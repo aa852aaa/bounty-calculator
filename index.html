@@ -1,18 +1,83 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>撲克賞金計算器</title>
+  <meta charset="UTF-8">
+  <title>德州撲克賞金計算器</title>
 </head>
 <body>
-  <h1>撲克賞金計算器</h1>
+  <h1>德州撲克賞金計算器</h1>
 
-  <p>此工具將協助你計算撲克比賽中的賞金等值。參數與公式將於後續新增。</p>
+  <label for="modeSelect">選擇比賽模式：</label>
+  <select id="modeSelect" onchange="updateModeForm()">
+    <option value="KO">KO</option>
+    <option value="PKO">PKO</option>
+    <option value="Mystery">Mystery</option>
+  </select>
+  <br><br>
+
+  <label for="startingChips">起始籌碼：</label>
+  <input type="number" id="startingChips" placeholder="例如 30000"><br><br>
+
+  <label for="totalPlayers">總參賽人數：</label>
+  <input type="number" id="totalPlayers" placeholder="例如 331"><br><br>
+
+  <label for="payoutStructure">名次獎金結構（格式：名次:金額，每行一筆）：</label><br>
+  <textarea id="payoutStructure" rows="10" cols="30" placeholder="1:20333&#10;2:15247&#10;3:11433"></textarea><br><br>
+
+  <div id="modeSpecificInputs">
+    <!-- 模式專屬欄位會插入這裡 -->
+  </div>
+
+  <button onclick="processInputs()">送出</button>
+
+  <h2>🔍 結果：</h2>
+  <pre id="output"></pre>
 
   <script>
-    // 未來將在這裡寫計算邏輯
-    console.log("賞金計算器已載入");
+    function updateModeForm() {
+      const mode = document.getElementById("modeSelect").value;
+      const container = document.getElementById("modeSpecificInputs");
+      container.innerHTML = ""; // 清空先前的欄位
+
+      if (mode === "KO") {
+        container.innerHTML = `
+          <label>每次擊殺獎金（$）：</label>
+          <input type="number" id="koBounty" placeholder="例如 50"><br><br>
+        `;
+      } else if (mode === "PKO") {
+        container.innerHTML = `
+          <label>起始賞金（$）：</label>
+          <input type="number" id="startingBounty" placeholder="例如 50"><br><br>
+          <label>自己每次擊殺可得比例（%）：</label>
+          <input type="number" id="bountyShare" value="50"><br><br>
+        `;
+      } else if (mode === "Mystery") {
+        container.innerHTML = `
+          <label>已獲得神秘賞金總額（$）：</label>
+          <input type="number" id="mysteryTotal"><br><br>
+        `;
+      }
+    }
+
+    function processInputs() {
+      const mode = document.getElementById("modeSelect").value;
+      const chips = document.getElementById("startingChips").value;
+      const players = document.getElementById("totalPlayers").value;
+      const payoutText = document.getElementById("payoutStructure").value;
+
+      let payouts = {};
+      payoutText.split('\n').forEach(line => {
+        const [place, amount] = line.split(':');
+        if (place && amount) payouts[parseInt(place)] = parseFloat(amount.replace(/,/g, ''));
+      });
+
+      let result = `模式：${mode}\n起始籌碼：${chips}\n總人數：${players}\n有效名次獎金數量：${Object.keys(payouts).length}`;
+
+      document.getElementById("output").innerText = result;
+    }
+
+    // 預設載入 KO 模式欄位
+    window.onload = updateModeForm;
   </script>
 </body>
 </html>
