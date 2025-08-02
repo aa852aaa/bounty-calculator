@@ -1,6 +1,18 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
+  <style>
+    pre#output {
+      font-size: 1em;
+      line-height: 1.6;
+    }
+    .highlight {
+      font-size: 1.3em;
+      font-weight: bold;
+      color: #b22222;
+    }
+  </style>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta charset="UTF-8">
   <title>撲克賞金計算機</title>
 </head>
@@ -133,14 +145,15 @@
       else if (mode === "PKO") bountyValue = parseFloat(document.getElementById("pkoTarget").value) * bountyPower;
       else if (mode === "Mystery") bountyValue = bountyAvg * bountyPower;
 
-      let result = `總籌碼：${totalChips.toFixed(0)}\n`;
+      let result = `總籌碼：${totalChips.toFixed(0)}
+`;
       result += `剩餘名次獎金：${dynamicPrize.toFixed(2)}\n`;
       result += `剩餘總賞金獎池：${bountyPool.toFixed(2)}\n`;
       result += `總剩餘獎池：${totalPool.toFixed(2)}\n`;
       result += `賞金力量（每單位可兌換籌碼）：${bountyPower.toFixed(4)}\n`;
-      result += `即時賞金價值籌碼：${bountyValue.toFixed(2)}`;
+      result += `即時賞金價值籌碼：<span class='highlight'>${bountyValue.toFixed(2)}</span>`;
 
-      document.getElementById("output").innerText = result;
+      document.getElementById("output").innerHTML = result;
     }
 
     window.onload = updateModeForm;
