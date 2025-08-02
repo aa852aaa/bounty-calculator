@@ -21,12 +21,13 @@
   <label for="totalPlayers">總參賽人數：</label>
   <input type="number" id="totalPlayers" placeholder="例如 331"><br><br>
 
-  <label for="payoutStructure">名次獎金結構（格式：名次:金額，每行一筆）：</label><br>
-  <textarea id="payoutStructure" rows="10" cols="30" placeholder="1:20333&#10;2:15247&#10;3:11433"></textarea><br><br>
+  <label for="remainingPlayers">目前剩餘人數：</label>
+  <input type="number" id="remainingPlayers" placeholder="例如 5"><br><br>
 
-  <div id="modeSpecificInputs">
-    <!-- 模式專屬欄位會插入這裡 -->
-  </div>
+  <label for="payoutStructure">名次獎金結構（格式：名次:金額，每行一筆）：</label><br>
+  <textarea id="payoutStructure" rows="10" cols="30" placeholder="1:20333&#10;2:15247&#10;4:8574"></textarea><br><br>
+
+  <div id="modeSpecificInputs"></div>
 
   <button onclick="processInputs()">送出</button>
 
@@ -37,7 +38,7 @@
     function updateModeForm() {
       const mode = document.getElementById("modeSelect").value;
       const container = document.getElementById("modeSpecificInputs");
-      container.innerHTML = ""; // 清空先前的欄位
+      container.innerHTML = "";
 
       if (mode === "KO") {
         container.innerHTML = `
@@ -61,22 +62,68 @@
 
     function processInputs() {
       const mode = document.getElementById("modeSelect").value;
-      const chips = document.getElementById("startingChips").value;
-      const players = document.getElementById("totalPlayers").value;
+      const chips = parseInt(document.getElementById("startingChips").value);
+      const players = parseInt(document.getElementById("totalPlayers").value);
+      const remainingPlayers = parseInt(document.getElementById("remainingPlayers").value);
       const payoutText = document.getElementById("payoutStructure").value;
 
-      let payouts = {};
+      // Step 1: 解析名次獎金
+      let rawPayouts = [];
       payoutText.split('\n').forEach(line => {
         const [place, amount] = line.split(':');
-        if (place && amount) payouts[parseInt(place)] = parseFloat(amount.replace(/,/g, ''));
+        if (place && amount) {
+          const rank = parseInt(place.trim());
+          const money = parseFloat(amount.replace(/,/g, '').trim());
+          rawPayouts.push({ rank, money });
+        }
       });
 
-      let result = `模式：${mode}\n起始籌碼：${chips}\n總人數：${players}\n有效名次獎金數量：${Object.keys(payouts).length}`;
+      rawPayouts.sort((a, b) => a.rank - b.rank);
+
+      let payouts = {};
+      let lastAmount = 0;
+      let current = 1;
+
+      for (let i = 0; i < rawPayouts.length; i++) {
+        const { rank, money } = rawPayouts[i];
+        while (current < rank) {
+          payouts[current] = lastAmount;
+          current++;
+        }
+        payouts[rank] = money;
+        lastAmount = money;
+        current = rank + 1;
+      }
+
+      while (current <= players) {
+        payouts[current] = lastAmount;
+        current++;
+      }
+
+      // Step 2: 計算剩餘名次獎金（可變化部分）
+      let remainingPrizeTotal = 0;
+      let lockedAmount = payouts[remainingPlayers] || 0;
+
+      for (let i = 1; i <= remainingPlayers; i++) {
+        remainingPrizeTotal += payouts[i];
+      }
+
+      let dynamicPrizePool = remainingPrizeTotal - (lockedAmount * remainingPlayers);
+      if (dynamicPrizePool < 0) dynamicPrizePool = 0;
+
+      // Step 3: 輸出結果
+      let result = `🎯 模式：${mode}\n起始籌碼：${chips}\n總人數：${players}\n目前剩餘人數：${remainingPlayers}`;
+      result += `\n\n🏆 名次獎金（前 10 名）：\n`;
+
+      for (let i = 1; i <= Math.min(10, players); i++) {
+        result += `第 ${i} 名：$${payouts[i].toLocaleString()}\n`;
+      }
+
+      result += `\n🧮 剩餘名次獎金總額（可變化部分）：$${dynamicPrizePool.toLocaleString()}`;
 
       document.getElementById("output").innerText = result;
     }
 
-    // 預設載入 KO 模式欄位
     window.onload = updateModeForm;
   </script>
 </body>
