@@ -23,8 +23,10 @@
   <label>目前剩餘人數：</label>
   <input type="number" id="remainingPlayers" placeholder="例如 5"><br><br>
 
-  <label>名次獎金結構（格式：名次:金額，每行一筆）：</label><br>
-  <textarea id="payoutStructure" rows="10" cols="30" placeholder="1:20333\n2:15247\n4:8574"></textarea><br><br>
+  <label>名次獎金結構（格式：名次:金額，每行一筆，可略過名次，會沿用上一筆金額；最後一筆名次之後預設為0）：</label><br>
+  <textarea id="payoutStructure" rows="10" cols="30" placeholder="1:20333
+2:15247
+4:8574"></textarea><br><br>
 
   <div id="modeSpecificInputs"></div>
 
@@ -89,7 +91,10 @@
         lastAmount = money;
         current = rank + 1;
       }
-      while (current <= totalPlayers) payouts[current++] = lastAmount;
+      while (current <= totalPlayers) {
+        payouts[current] = 0;
+        current++;
+      }
 
       let locked = payouts[remainingPlayers] || 0;
       let remainingPrize = 0;
