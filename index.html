@@ -2,34 +2,33 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="UTF-8">
-  <title>德州撲克賞金計算器</title>
+  <title>德州撲克賞金籌碼價值計算器</title>
 </head>
 <body>
-  <h1>德州撲克賞金計算器</h1>
+  <h1>德州撲克賞金籌碼價值計算器</h1>
 
   <label for="modeSelect">選擇比賽模式：</label>
   <select id="modeSelect" onchange="updateModeForm()">
     <option value="KO">KO</option>
     <option value="PKO">PKO</option>
     <option value="Mystery">Mystery</option>
-  </select>
-  <br><br>
+  </select><br><br>
 
-  <label for="startingChips">起始籌碼：</label>
+  <label>起始籌碼：</label>
   <input type="number" id="startingChips" placeholder="例如 30000"><br><br>
 
-  <label for="totalPlayers">總參賽人數：</label>
+  <label>總人數：</label>
   <input type="number" id="totalPlayers" placeholder="例如 331"><br><br>
 
-  <label for="remainingPlayers">目前剩餘人數：</label>
+  <label>目前剩餘人數：</label>
   <input type="number" id="remainingPlayers" placeholder="例如 5"><br><br>
 
-  <label for="payoutStructure">名次獎金結構（格式：名次:金額，每行一筆）：</label><br>
-  <textarea id="payoutStructure" rows="10" cols="30" placeholder="1:20333&#10;2:15247&#10;4:8574"></textarea><br><br>
+  <label>名次獎金結構（格式：名次:金額，每行一筆）：</label><br>
+  <textarea id="payoutStructure" rows="10" cols="30" placeholder="1:20333\n2:15247\n4:8574"></textarea><br><br>
 
   <div id="modeSpecificInputs"></div>
 
-  <button onclick="processInputs()">送出</button>
+  <button onclick="processInputs()">計算</button>
 
   <h2>🔍 結果：</h2>
   <pre id="output"></pre>
@@ -42,32 +41,33 @@
 
       if (mode === "KO") {
         container.innerHTML = `
-          <label>每次擊殺獎金（$）：</label>
-          <input type="number" id="koBounty" placeholder="例如 50"><br><br>
+          <label>單筆賞金金額：</label>
+          <input type="number" id="koBounty"><br><br>
         `;
       } else if (mode === "PKO") {
         container.innerHTML = `
-          <label>起始賞金（$）：</label>
-          <input type="number" id="startingBounty" placeholder="例如 50"><br><br>
-          <label>自己每次擊殺可得比例（%）：</label>
-          <input type="number" id="bountyShare" value="50"><br><br>
+          <label>目標賞金金額：</label>
+          <input type="number" id="pkoTarget"><br><br>
+          <label>本桌總賞金：</label>
+          <input type="number" id="pkoTotalBounty"><br><br>
+          <label>本桌總人數：</label>
+          <input type="number" id="pkoPlayers"><br><br>
         `;
       } else if (mode === "Mystery") {
         container.innerHTML = `
-          <label>已獲得神秘賞金總額（$）：</label>
-          <input type="number" id="mysteryTotal"><br><br>
+          <label>Mystery賞金結構（格式：金額:剩餘數量，每行一筆）：</label><br>
+          <textarea id="mysteryStructure" rows="10" cols="30" placeholder="26000:1\n15179:1\n6600:1"></textarea><br><br>
         `;
       }
     }
 
     function processInputs() {
       const mode = document.getElementById("modeSelect").value;
-      const chips = parseInt(document.getElementById("startingChips").value);
-      const players = parseInt(document.getElementById("totalPlayers").value);
+      const startingChips = parseFloat(document.getElementById("startingChips").value);
+      const totalPlayers = parseInt(document.getElementById("totalPlayers").value);
       const remainingPlayers = parseInt(document.getElementById("remainingPlayers").value);
       const payoutText = document.getElementById("payoutStructure").value;
 
-      // Step 1: 解析名次獎金
       let rawPayouts = [];
       payoutText.split('\n').forEach(line => {
         const [place, amount] = line.split(':');
@@ -77,13 +77,8 @@
           rawPayouts.push({ rank, money });
         }
       });
-
       rawPayouts.sort((a, b) => a.rank - b.rank);
-
-      let payouts = {};
-      let lastAmount = 0;
-      let current = 1;
-
+      let payouts = {}, lastAmount = 0, current = 1;
       for (let i = 0; i < rawPayouts.length; i++) {
         const { rank, money } = rawPayouts[i];
         while (current < rank) {
@@ -94,32 +89,51 @@
         lastAmount = money;
         current = rank + 1;
       }
+      while (current <= totalPlayers) payouts[current++] = lastAmount;
 
-      while (current <= players) {
-        payouts[current] = lastAmount;
-        current++;
+      let locked = payouts[remainingPlayers] || 0;
+      let remainingPrize = 0;
+      for (let i = 1; i <= remainingPlayers; i++) remainingPrize += payouts[i];
+      let dynamicPrize = remainingPrize - locked * remainingPlayers;
+
+      let bountyAvg = 0;
+      if (mode === "KO") {
+        bountyAvg = parseFloat(document.getElementById("koBounty").value);
+      } else if (mode === "PKO") {
+        const totalBounty = parseFloat(document.getElementById("pkoTotalBounty").value);
+        const tablePlayers = parseInt(document.getElementById("pkoPlayers").value);
+        bountyAvg = totalBounty / tablePlayers;
+      } else if (mode === "Mystery") {
+        const lines = document.getElementById("mysteryStructure").value.split('\n');
+        let total = 0, count = 0;
+        lines.forEach(line => {
+          const [amt, qty] = line.split(':');
+          if (amt && qty) {
+            const val = parseFloat(amt.replace(/,/g, ''));
+            const q = parseInt(qty);
+            total += val * q;
+            count += q;
+          }
+        });
+        bountyAvg = total / count;
       }
 
-      // Step 2: 計算剩餘名次獎金（可變化部分）
-      let remainingPrizeTotal = 0;
-      let lockedAmount = payouts[remainingPlayers] || 0;
+      const bountyPool = bountyAvg * remainingPlayers;
+      const totalChips = startingChips * totalPlayers;
+      const totalPool = dynamicPrize + bountyPool;
+      const bountyPower = totalChips / totalPool;
 
-      for (let i = 1; i <= remainingPlayers; i++) {
-        remainingPrizeTotal += payouts[i];
-      }
+      let bountyValue = 0;
+      if (mode === "KO") bountyValue = bountyAvg * bountyPower;
+      else if (mode === "PKO") bountyValue = parseFloat(document.getElementById("pkoTarget").value) * bountyPower;
+      else if (mode === "Mystery") bountyValue = bountyAvg * bountyPower;
 
-      let dynamicPrizePool = remainingPrizeTotal - (lockedAmount * remainingPlayers);
-      if (dynamicPrizePool < 0) dynamicPrizePool = 0;
-
-      // Step 3: 輸出結果
-      let result = `🎯 模式：${mode}\n起始籌碼：${chips}\n總人數：${players}\n目前剩餘人數：${remainingPlayers}`;
-      result += `\n\n🏆 名次獎金（前 10 名）：\n`;
-
-      for (let i = 1; i <= Math.min(10, players); i++) {
-        result += `第 ${i} 名：$${payouts[i].toLocaleString()}\n`;
-      }
-
-      result += `\n🧮 剩餘名次獎金總額（可變化部分）：$${dynamicPrizePool.toLocaleString()}`;
+      let result = `總籌碼：${totalChips.toFixed(0)}\n`;
+      result += `剩餘名次獎金：${dynamicPrize.toFixed(2)}\n`;
+      result += `剩餘總賞金獎池：${bountyPool.toFixed(2)}\n`;
+      result += `總剩餘獎池：${totalPool.toFixed(2)}\n`;
+      result += `賞金力量（每單位可兌換籌碼）：${bountyPower.toFixed(4)}\n`;
+      result += `即時賞金價值籌碼：${bountyValue.toFixed(2)}`;
 
       document.getElementById("output").innerText = result;
     }
