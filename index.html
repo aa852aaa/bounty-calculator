@@ -2,10 +2,10 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="UTF-8">
-  <title>德州撲克賞金籌碼價值計算器</title>
+  <title>撲克賞金計算機</title>
 </head>
 <body>
-  <h1>德州撲克賞金籌碼價值計算器</h1>
+  <h1>撲克賞金計算機</h1>
 
   <label for="modeSelect">選擇比賽模式：</label>
   <select id="modeSelect" onchange="updateModeForm()">
@@ -48,11 +48,11 @@
         `;
       } else if (mode === "PKO") {
         container.innerHTML = `
-          <label>目標賞金金額：</label>
+          <label>即時領取賞金金額：</label>
           <input type="number" id="pkoTarget"><br><br>
-          <label>本桌總賞金：</label>
+          <label>本桌總賞金（用來平均並計算剩餘賞金）：</label>
           <input type="number" id="pkoTotalBounty"><br><br>
-          <label>本桌總人數：</label>
+          <label>本桌總人數（用來平均並計算剩餘賞金）：</label>
           <input type="number" id="pkoPlayers"><br><br>
         `;
       } else if (mode === "Mystery") {
