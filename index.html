@@ -1,6 +1,9 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>撲克賞金計算機</title>
   <style>
     pre#output {
       font-size: 1em;
@@ -11,10 +14,11 @@
       font-weight: bold;
       color: #b22222;
     }
+    .error {
+      color: #b22222;
+      font-weight: bold;
+    }
   </style>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta charset="UTF-8">
-  <title>撲克賞金計算機</title>
 </head>
 <body>
   <h1>撲克賞金計算機</h1>
@@ -75,6 +79,15 @@
       }
     }
 
+    function showError(msg) {
+      const output = document.getElementById("output");
+      output.textContent = "";
+      const span = document.createElement("span");
+      span.className = "error";
+      span.textContent = "⚠ " + msg;
+      output.appendChild(span);
+    }
+
     function processInputs() {
       const mode = document.getElementById("modeSelect").value;
       const startingChips = parseFloat(document.getElementById("startingChips").value);
@@ -82,15 +95,39 @@
       const remainingPlayers = parseInt(document.getElementById("remainingPlayers").value);
       const payoutText = document.getElementById("payoutStructure").value;
 
+      // 基本欄位驗證
+      if (isNaN(startingChips) || startingChips <= 0) {
+        return showError("請輸入有效的起始籌碼（必須大於 0）");
+      }
+      if (isNaN(totalPlayers) || totalPlayers <= 0) {
+        return showError("請輸入有效的總人數（必須大於 0）");
+      }
+      if (isNaN(remainingPlayers) || remainingPlayers <= 0) {
+        return showError("請輸入有效的剩餘人數（必須大於 0）");
+      }
+      if (remainingPlayers > totalPlayers) {
+        return showError("剩餘人數不能大於總人數");
+      }
+      if (!payoutText.trim()) {
+        return showError("請輸入名次獎金結構");
+      }
+
       let rawPayouts = [];
       payoutText.split('\n').forEach(line => {
         const [place, amount] = line.split(':');
         if (place && amount) {
           const rank = parseInt(place.trim());
           const money = parseFloat(amount.replace(/,/g, '').trim());
-          rawPayouts.push({ rank, money });
+          if (!isNaN(rank) && !isNaN(money) && rank > 0) {
+            rawPayouts.push({ rank, money });
+          }
         }
       });
+
+      if (rawPayouts.length === 0) {
+        return showError("獎金結構格式不正確，請使用「名次:金額」格式，每行一筆");
+      }
+
       rawPayouts.sort((a, b) => a.rank - b.rank);
       let payouts = {}, lastAmount = 0, current = 1;
       for (let i = 0; i < rawPayouts.length; i++) {
@@ -108,36 +145,65 @@
         current++;
       }
 
-      let locked = payouts[remainingPlayers] || 0;
+      // 邊界檢查：確保 remainingPlayers 在 payouts 範圍內
+      let locked = payouts[remainingPlayers] !== undefined ? payouts[remainingPlayers] : 0;
       let remainingPrize = 0;
-      for (let i = 1; i <= remainingPlayers; i++) remainingPrize += payouts[i];
+      for (let i = 1; i <= remainingPlayers; i++) remainingPrize += (payouts[i] || 0);
       let dynamicPrize = remainingPrize - locked * remainingPlayers;
 
       let bountyAvg = 0;
       if (mode === "KO") {
-        bountyAvg = parseFloat(document.getElementById("koBounty").value);
+        const koBounty = parseFloat(document.getElementById("koBounty").value);
+        if (isNaN(koBounty) || koBounty <= 0) {
+          return showError("請輸入有效的單筆賞金金額（必須大於 0）");
+        }
+        bountyAvg = koBounty;
       } else if (mode === "PKO") {
+        const pkoTarget = parseFloat(document.getElementById("pkoTarget").value);
         const totalBounty = parseFloat(document.getElementById("pkoTotalBounty").value);
         const tablePlayers = parseInt(document.getElementById("pkoPlayers").value);
+        if (isNaN(pkoTarget) || pkoTarget <= 0) {
+          return showError("請輸入有效的即時領取賞金金額（必須大於 0）");
+        }
+        if (isNaN(totalBounty) || totalBounty <= 0) {
+          return showError("請輸入有效的本桌總賞金（必須大於 0）");
+        }
+        if (isNaN(tablePlayers) || tablePlayers <= 0) {
+          return showError("請輸入有效的本桌總人數（必須大於 0）");
+        }
         bountyAvg = totalBounty / tablePlayers;
       } else if (mode === "Mystery") {
-        const lines = document.getElementById("mysteryStructure").value.split('\n');
+        const mysteryText = document.getElementById("mysteryStructure").value;
+        if (!mysteryText.trim()) {
+          return showError("請輸入 Mystery 賞金結構");
+        }
+        const lines = mysteryText.split('\n');
         let total = 0, count = 0;
         lines.forEach(line => {
           const [amt, qty] = line.split(':');
           if (amt && qty) {
             const val = parseFloat(amt.replace(/,/g, ''));
             const q = parseInt(qty);
-            total += val * q;
-            count += q;
+            if (!isNaN(val) && !isNaN(q) && q > 0) {
+              total += val * q;
+              count += q;
+            }
           }
         });
+        if (count === 0) {
+          return showError("Mystery 賞金結構格式不正確，請使用「金額:數量」格式，每行一筆");
+        }
         bountyAvg = total / count;
       }
 
       const bountyPool = bountyAvg * remainingPlayers;
       const totalChips = startingChips * totalPlayers;
       const totalPool = dynamicPrize + bountyPool;
+
+      if (totalPool <= 0) {
+        return showError("總剩餘獎池為 0 或負數，請檢查輸入資料");
+      }
+
       const bountyPower = totalChips / totalPool;
 
       let bountyValue = 0;
@@ -145,15 +211,25 @@
       else if (mode === "PKO") bountyValue = parseFloat(document.getElementById("pkoTarget").value) * bountyPower;
       else if (mode === "Mystery") bountyValue = bountyAvg * bountyPower;
 
-      let result = `總籌碼：${totalChips.toFixed(0)}
-`;
-      result += `剩餘名次獎金：${dynamicPrize.toFixed(2)}\n`;
-      result += `剩餘總賞金獎池：${bountyPool.toFixed(2)}\n`;
-      result += `總剩餘獎池：${totalPool.toFixed(2)}\n`;
-      result += `賞金力量（每單位可兌換籌碼）：${bountyPower.toFixed(4)}\n`;
-      result += `即時賞金價值籌碼：<span class='highlight'>${bountyValue.toFixed(2)}</span>`;
+      // 使用安全的 DOM 操作取代 innerHTML
+      const output = document.getElementById("output");
+      output.textContent = "";
 
-      document.getElementById("output").innerHTML = result;
+      const lines = [
+        `總籌碼：${totalChips.toFixed(0)}`,
+        `剩餘名次獎金：${dynamicPrize.toFixed(2)}`,
+        `剩餘總賞金獎池：${bountyPool.toFixed(2)}`,
+        `總剩餘獎池：${totalPool.toFixed(2)}`,
+        `賞金力量（每單位可兌換籌碼）：${bountyPower.toFixed(4)}`,
+        `即時賞金價值籌碼：`
+      ];
+
+      output.appendChild(document.createTextNode(lines.join("\n")));
+
+      const highlightSpan = document.createElement("span");
+      highlightSpan.className = "highlight";
+      highlightSpan.textContent = bountyValue.toFixed(2);
+      output.appendChild(highlightSpan);
     }
 
     window.onload = updateModeForm;
